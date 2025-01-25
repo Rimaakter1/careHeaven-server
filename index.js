@@ -48,6 +48,8 @@ async function run() {
 
         const db = client.db('CareHeaven')
         const usersCollection = db.collection('users')
+        const campsCollection = db.collection('camps')
+
 
         const verifyAdmin = async (req, res, next) => {
             const email = req.user?.email
@@ -104,6 +106,13 @@ async function run() {
 
         }
         );
+
+
+        app.post('/camps', verifyToken, verifyAdmin, async (req, res) => {
+            const camp = req.body
+            const result = await campsCollection.insertOne(camp)
+            res.send(result)
+        })
 
 
         app.post('/jwt', async (req, res) => {
