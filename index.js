@@ -114,6 +114,10 @@ async function run() {
             res.send(result)
         })
 
+       app.get('/camps', async (req, res) => {
+        const result = await campsCollection.find().toArray()
+            res.send(result)
+       })
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
