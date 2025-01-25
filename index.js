@@ -66,11 +66,34 @@ async function run() {
             res.send(result)
         })
 
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email
+            const result = await usersCollection.findOne({ email })
+            res.send(result)
+        })
+
         app.get('/users/role/:email', async (req, res) => {
             const email = req.params.email
             const result = await usersCollection.findOne({ email })
             res.send({ role: result?.role })
         })
+
+        app.put('/users/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            const userInfo = req.body;
+            const result = await usersCollection.updateOne(
+                { email },
+                {
+                    $set: { ...userInfo, timestamp: Date.now() },
+                }
+            );
+            if (result.modifiedCount > 0) {
+                return res.send({ success: true, message: 'Profile updated successfully' });
+            }
+
+        }
+        );
+
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
