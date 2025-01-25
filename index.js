@@ -46,6 +46,32 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
 
+        const db = client.db('CareHeaven')
+        const usersCollection = db.collection('users')
+
+        // save user info
+        app.post('/users/:email', async (req, res) => {
+            const email = req.params.email
+            const query = { email }
+            const user = req.body
+            const isExist = await usersCollection.findOne(query)
+            if (isExist) {
+                return res.send(isExist)
+            }
+            const result = await usersCollection.insertOne({
+                ...user,
+                role: 'participant',
+                timestamp: Date.now(),
+            })
+            res.send(result)
+        })
+
+        app.get('/users/role/:email', async (req, res) => {
+            const email = req.params.email
+            const result = await usersCollection.findOne({ email })
+            res.send({ role: result?.role })
+        })
+
         app.post('/jwt', async (req, res) => {
             const email = req.body
             const token = jwt.sign(email, process.env.SECRET_KEY, {
