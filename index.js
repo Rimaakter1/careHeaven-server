@@ -1,7 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
-const { MongoClient, ServerApiVersion } = require('mongodb')
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
 const morgan = require('morgan')
@@ -118,6 +118,13 @@ async function run() {
         const result = await campsCollection.find().toArray()
             res.send(result)
        })
+
+        app.delete('/camps/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await campsCollection.deleteOne(query)
+            res.send(result)
+        })
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
