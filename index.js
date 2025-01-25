@@ -49,7 +49,18 @@ async function run() {
         const db = client.db('CareHeaven')
         const usersCollection = db.collection('users')
 
-        // save user info
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.user?.email
+            const query = { email }
+            const result = await usersCollection.findOne(query)
+            if (!result || result?.role !== 'admin')
+                return res
+                    .status(403)
+                    .send({ message: 'Forbidden Access! Admin Only Actions!' })
+
+            next()
+        }
+
         app.post('/users/:email', async (req, res) => {
             const email = req.params.email
             const query = { email }
@@ -78,7 +89,7 @@ async function run() {
             res.send({ role: result?.role })
         })
 
-        app.put('/users/:email', verifyToken, async (req, res) => {
+        app.put('/users/:email', verifyToken, verifyAdmin, async (req, res) => {
             const email = req.params.email;
             const userInfo = req.body;
             const result = await usersCollection.updateOne(
@@ -108,7 +119,7 @@ async function run() {
                 })
                 .send({ success: true })
         })
-        // Logout
+
         app.get('/logout', async (req, res) => {
             try {
                 res
