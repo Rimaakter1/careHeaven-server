@@ -135,18 +135,13 @@ async function run() {
 
 
 
-        app.get('/medical-camp/:id', verifyToken, verifyAdmin, async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) }
-            const decodedEmail = req.user?.email;
-
-            if (!decodedEmail) {
-                return res.status(401).send({ message: 'Unauthorized Access' });
-            }
-
+        app.get('/camp/:campId', verifyToken, async (req, res) => {
+            const campId = req.params.campId;
+            const query = { _id: new ObjectId(campId) }
             const result = await campsCollection.findOne(query)
             res.send(result)
         })
+
 
         app.put('/update-camp/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id
