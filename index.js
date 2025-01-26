@@ -115,9 +115,25 @@ async function run() {
         })
 
         app.get('/camps', async (req, res) => {
-            const result = await campsCollection.find().toArray()
-            res.send(result)
-        })
+            try {
+                const sortField = req.query.sort || "participants"; 
+                const sortOrder = req.query.order === "asc" ? 1 : -1; 
+                const limit = parseInt(req.query.limit) || 0; 
+
+                const result = await campsCollection
+                    .find()
+                    .sort({ [sortField]: sortOrder }) 
+                    .limit(limit)
+                    .toArray();
+
+                res.send(result);
+            } catch (error) {
+                console.error("Error fetching camps:", error);
+                res.status(500).send({ error: "Failed to fetch camps" });
+            }
+        });
+
+
 
         app.get('/medical-camp/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
