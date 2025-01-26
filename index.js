@@ -114,12 +114,37 @@ async function run() {
             res.send(result)
         })
 
-       app.get('/camps', async (req, res) => {
-        const result = await campsCollection.find().toArray()
+        app.get('/camps', async (req, res) => {
+            const result = await campsCollection.find().toArray()
             res.send(result)
-       })
+        })
 
-        app.delete('/camps/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/medical-camp/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const decodedEmail = req.user?.email;
+
+            if (!decodedEmail) {
+                return res.status(401).send({ message: 'Unauthorized Access' });
+            }
+
+            const result = await campsCollection.findOne(query)
+            res.send(result)
+        })
+
+        app.put('/update-camp/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id
+            const campData = req.body
+            const updated = {
+                $set: campData,
+            }
+            const query = { _id: new ObjectId(id) }
+            const options = { upsert: true }
+            const result = await campsCollection.updateOne(query, updated, options)
+            res.send(result)
+        })
+
+        app.delete('/delete-camp/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await campsCollection.deleteOne(query)
