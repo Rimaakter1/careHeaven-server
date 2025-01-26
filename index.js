@@ -49,6 +49,7 @@ async function run() {
         const db = client.db('CareHeaven')
         const usersCollection = db.collection('users')
         const campsCollection = db.collection('camps')
+        const participantsCollection = db.collection('participants')
 
 
         const verifyAdmin = async (req, res, next) => {
@@ -116,13 +117,13 @@ async function run() {
 
         app.get('/camps', async (req, res) => {
             try {
-                const sortField = req.query.sort || "participants"; 
-                const sortOrder = req.query.order === "asc" ? 1 : -1; 
-                const limit = parseInt(req.query.limit) || 0; 
+                const sortField = req.query.sort || "participants";
+                const sortOrder = req.query.order === "asc" ? 1 : -1;
+                const limit = parseInt(req.query.limit) || 0;
 
                 const result = await campsCollection
                     .find()
-                    .sort({ [sortField]: sortOrder }) 
+                    .sort({ [sortField]: sortOrder })
                     .limit(limit)
                     .toArray();
 
@@ -161,6 +162,21 @@ async function run() {
             const result = await campsCollection.deleteOne(query)
             res.send(result)
         })
+
+
+
+
+        app.post('/participants', async (req, res) => {
+            const participantData = req.body;
+            const participantResult = await participantsCollection.insertOne(participantData);
+            const query = { _id: new ObjectId(participantData.campId) };
+            const update = { $inc: { participantCount: 1 } };
+            const campResult = await campsCollection.updateOne(query, update);
+            res.send({ participant: participantResult });
+
+        });
+
+
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
