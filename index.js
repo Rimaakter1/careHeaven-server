@@ -117,7 +117,7 @@ async function run() {
 
         app.get('/camps', async (req, res) => {
             try {
-                const sortField = req.query.sort || "participants";
+                const sortField = req.query.sort || "participantCount";
                 const sortOrder = req.query.order === "asc" ? 1 : -1;
                 const limit = parseInt(req.query.limit) || 0;
 
