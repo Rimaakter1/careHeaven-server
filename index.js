@@ -92,7 +92,7 @@ async function run() {
             res.send({ role: result?.role })
         })
 
-        app.put('/users/:email', verifyToken, verifyAdmin, async (req, res) => {
+        app.put('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const userInfo = req.body;
             const result = await usersCollection.updateOne(
@@ -173,7 +173,52 @@ async function run() {
             const update = { $inc: { participantCount: 1 } };
             const campResult = await campsCollection.updateOne(query, update);
             res.send({ participant: participantResult });
+        });
 
+
+        app.get('/participants/:email', async (req, res) => {
+            const email = req.params.email;
+
+            const result = await participantsCollection.aggregate([
+                {
+                    $match: { 'participantEmail': email },
+                },
+                {
+                    $addFields: {
+                        campId: { $toObjectId: '$campId' },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: 'camps',
+                        localField: 'campId',
+                        foreignField: '_id',
+                        as: 'camps',
+                    },
+                },
+                { $unwind: '$camps' },
+                {
+                    $addFields: {
+                        campName: '$camps.name',
+                        campFees: '$camps.Fees',
+                        campLocation: '$camps.location',
+                        paymentStatus: { $ifNull: ['$paymentStatus', 'Unpaid'] },
+                        paymentConfirmationStatus: { $ifNull: ['$paymentConfirmationStatus', 'Pending'] },
+                        feedback: { $ifNull: ['$feedback', null] },
+                        cancelable: {
+                            $cond: [{ $ne: ['$paymentStatus', 'Paid'] }, true, false]
+                        },
+                    },
+                },
+                {
+                    $project: {
+                        camps: 0,
+                        _id: 0,
+                    },
+                },
+            ]).toArray();
+
+            res.send(result);
         });
 
 
