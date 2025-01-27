@@ -5,6 +5,8 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
 const morgan = require('morgan')
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 const port = process.env.PORT || 5000
 const app = express()
@@ -50,6 +52,7 @@ async function run() {
         const usersCollection = db.collection('users')
         const campsCollection = db.collection('camps')
         const participantsCollection = db.collection('participants')
+        const paymentsCollection = db.collection('payments')
 
 
         const verifyAdmin = async (req, res, next) => {
@@ -175,6 +178,13 @@ async function run() {
             res.send({ participant: participantResult });
         });
 
+        app.get('/participant/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await campsCollection.findOne(query)
+            res.send(result)
+        })
+
 
         app.get('/participants/:email', async (req, res) => {
             const email = req.params.email;
@@ -222,6 +232,30 @@ async function run() {
         });
 
 
+        app.post('/create-payment-intent', async (req, res) => {
+            const { campFees } = req.body;
+            const amount = parseInt(campFees * 100);
+            console.log(amount, 'amount inside the intent')
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        });
+
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const paymentResult = await paymentsCollection.insertOne(payment);
+
+            console.log('payment info', payment);
+
+            res.send({ paymentResult });
+        })
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
