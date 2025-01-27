@@ -175,7 +175,7 @@ async function run() {
             const query = { _id: new ObjectId(participantData.campId) };
             const update = { $inc: { participantCount: 1 } };
             const campResult = await campsCollection.updateOne(query, update);
-            res.send({ participant: participantResult });
+            res.send({ participant: participantResult, campResult });
         });
 
         app.get('/participant/:id', verifyToken, async (req, res) => {
@@ -212,12 +212,7 @@ async function run() {
                         campName: '$camps.name',
                         campFees: '$camps.Fees',
                         campLocation: '$camps.location',
-                        paymentStatus: { $ifNull: ['$paymentStatus', 'Unpaid'] },
-                        paymentConfirmationStatus: { $ifNull: ['$paymentConfirmationStatus', 'Pending'] },
-                        feedback: { $ifNull: ['$feedback', null] },
-                        cancelable: {
-                            $cond: [{ $ne: ['$paymentStatus', 'Paid'] }, true, false]
-                        },
+
                     },
                 },
                 {
@@ -250,12 +245,52 @@ async function run() {
 
         app.post('/payments', async (req, res) => {
             const payment = req.body;
+            const { campId } = req.body;
+            const participant = await participantsCollection.findOne({ campId });
             const paymentResult = await paymentsCollection.insertOne(payment);
+            const updateResult = await participantsCollection.updateOne(
+                { campId },
+                {
+                    $set: {
+                        paymentStatus: 'Paid',
+                    },
+                }
+            );
+            const updatedParticipant = await participantsCollection.findOne({ campId });
+            res.send({
+                paymentResult,
+                participant: updatedParticipant,
+            });
 
-            console.log('payment info', payment);
+        });
 
-            res.send({ paymentResult });
-        })
+        
+
+        app.delete('/cancel-registration/:id', verifyToken, async (req, res) => {
+            const campId = req.params.id;
+
+
+            const participantQuery = { campId };
+            const participantDeleteResult = await participantsCollection.deleteOne(participantQuery);
+
+            if (participantDeleteResult.deletedCount === 0) {
+                return res.status(404).send({ message: "Participant not found" });
+            }
+
+            const campUpdateResult = await campsCollection.updateOne(
+                { _id: new ObjectId(campId) },
+                { $inc: { participantCount: -1 } }
+            );
+
+            res.send({
+                participantDeleteResult,
+                campUpdateResult,
+            });
+
+        });
+
+
+
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
