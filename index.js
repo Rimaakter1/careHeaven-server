@@ -222,7 +222,7 @@ async function run() {
         });
 
 
-        app.get('/participant-all-camps/:email', async (req, res) => {
+        app.get('/participant-all-camps/:email', verifyToken, async (req, res) => {
             const participantEmail = req.params.email
             console.log(participantEmail);
             const result = await participantsCollection.find({ participantEmail }).toArray()
@@ -412,25 +412,19 @@ async function run() {
 
         });
 
-        app.patch('/update-confirmation/:participantId', verifyToken, verifyAdmin, async (req, res) => {
+        app.patch('/update-confirmation/:participantId', async (req, res) => {
             const { participantId } = req.params;
             const { paymentConfirmationStatus } = req.body;
             console.log('status', paymentConfirmationStatus);
-            try {
-                const result = await participantsCollection.updateOne(
-                    { _id: new ObjectId(participantId) },
-                    { $set: { paymentConfirmationStatus: paymentConfirmationStatus } }
-                );
+            const result = await participantsCollection.updateOne(
+                { _id: new ObjectId(participantId) },
+                { $set: { paymentConfirmationStatus: paymentConfirmationStatus } }
+            );
 
-                if (result.modifiedCount === 1) {
-                    return res.send({ success: true });
-                } else {
-                    return res.status(404).send({ error: 'Participant not found or confirmation already updated' });
-                }
-            } catch (error) {
-                console.error("Error updating confirmation status:", error);
-                res.status(500).send({ error: 'Internal server error' });
+            if (result.modifiedCount === 1) {
+                return res.send({ success: true });
             }
+
         });
 
         app.delete('/cancel-registered-participant/:participantId', verifyToken, verifyAdmin, async (req, res) => {
