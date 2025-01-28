@@ -178,17 +178,11 @@ async function run() {
             res.send({ participant: participantResult, campResult });
         });
 
-        app.get('/participant/:id', verifyToken, async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) }
-            const result = await campsCollection.findOne(query)
-            res.send(result)
-        })
+
 
 
         app.get('/participants/:email', async (req, res) => {
             const email = req.params.email;
-
             const result = await participantsCollection.aggregate([
                 {
                     $match: { 'participantEmail': email },
@@ -218,7 +212,7 @@ async function run() {
                 {
                     $project: {
                         camps: 0,
-                        _id: 0,
+                        _id: 1,
                     },
                 },
             ]).toArray();
@@ -226,6 +220,15 @@ async function run() {
             res.send(result);
         });
 
+
+
+        app.get('/participant/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const query = { _id: new ObjectId(id) }
+            const result = await participantsCollection.findOne(query)
+            res.send(result)
+        })
 
         app.post('/create-payment-intent', async (req, res) => {
             const { campFees } = req.body;
@@ -264,7 +267,53 @@ async function run() {
 
         });
 
-        
+        app.get('/payments/:email', async (req, res) => {
+            const email = req.params.email;
+            try {
+                const result = await paymentsCollection.aggregate([
+                    { $match: { email: email } },
+                    {
+                        $addFields: {
+                            participantId: { $toObjectId: '$participantId' },
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: 'participants',
+                            localField: 'participantId',
+                            foreignField: '_id',
+                            as: 'participants',
+                        },
+                    },
+                    { $unwind: '$participants' },
+                    {
+                        $addFields: {
+                            campName: '$participants.campName',
+                            campFees: '$participants.fees',
+                            campLocation: '$participants.location',
+                            paymentStatus: '$participants.paymentStatus',
+                            paymentConfirmationStatus: '$participants.paymentConfirmationStatus'
+
+                        },
+                    },
+                    {
+                        $project: {
+                            participants: 0,
+                            _id: 0,
+                        },
+                    },
+                ]).toArray();
+
+                console.log(result);
+                res.send(result);
+            } catch (error) {
+                console.error('Error:', error);
+                res.status(500).send({ message: 'An error occurred', error });
+            }
+        });
+
+
+
 
         app.delete('/cancel-registration/:id', verifyToken, async (req, res) => {
             const campId = req.params.id;
