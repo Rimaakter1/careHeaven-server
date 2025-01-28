@@ -53,6 +53,7 @@ async function run() {
         const campsCollection = db.collection('camps')
         const participantsCollection = db.collection('participants')
         const paymentsCollection = db.collection('payments')
+        const feedbacksCollection = db.collection('feedbacks')
 
 
         const verifyAdmin = async (req, res, next) => {
@@ -403,9 +404,9 @@ async function run() {
 
         });
 
-        app.patch('/update-confirmation/:participantId', async (req, res) => {
+        app.patch('/update-confirmation/:participantId', verifyToken, verifyAdmin, async (req, res) => {
             const { participantId } = req.params;
-            const { paymentConfirmationStatus } = req.body; // 'Confirmed'
+            const { paymentConfirmationStatus } = req.body;
             console.log('status', paymentConfirmationStatus);
             try {
                 const result = await participantsCollection.updateOne(
@@ -424,7 +425,7 @@ async function run() {
             }
         });
 
-        app.delete('/cancel-registered-participant/:participantId', async (req, res) => {
+        app.delete('/cancel-registered-participant/:participantId', verifyToken, verifyAdmin, async (req, res) => {
             const { participantId } = req.params;
 
             try {
@@ -441,6 +442,25 @@ async function run() {
                 console.error("Error canceling registration:", error);
                 res.status(500).send({ error: 'Internal server error' });
             }
+        });
+
+
+        app.post("/submit-feedback", async (req, res) => {
+            const { campId, feedback, rating, participantName, participantEmail, photo } = req.body;
+
+                const result = await feedbacksCollection.insertOne({
+                    campId: new ObjectId(campId),
+                    feedback,
+                    rating,
+                    participantName,
+                    participantEmail,
+                    photo,
+                    createdAt: new Date(),
+                });
+
+                res.status(201).json({
+                    feedbackId: result.insertedId,
+                });
         });
 
         app.post('/jwt', async (req, res) => {
