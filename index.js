@@ -22,7 +22,6 @@ app.use(morgan('dev'))
 
 const verifyToken = async (req, res, next) => {
     const token = req.cookies?.token
-
     if (!token) {
         return res.status(401).send({ message: 'unauthorized access' })
     }
@@ -120,7 +119,7 @@ async function run() {
         })
 
         app.get('/camps', async (req, res) => {
-            try {
+            
                 const sortField = req.query.sort || "participantCount";
                 const sortOrder = req.query.order === "asc" ? 1 : -1;
                 const limit = parseInt(req.query.limit) || 0;
@@ -132,10 +131,7 @@ async function run() {
                     .toArray();
 
                 res.send(result);
-            } catch (error) {
-                console.error("Error fetching camps:", error);
-                res.status(500).send({ error: "Failed to fetch camps" });
-            }
+           
         });
 
 
@@ -167,10 +163,7 @@ async function run() {
             res.send(result)
         })
 
-
-
-
-        app.post('/participants', async (req, res) => {
+        app.post('/participants', verifyToken, async (req, res) => {
             const participantData = req.body;
             const participantResult = await participantsCollection.insertOne(participantData);
             const query = { _id: new ObjectId(participantData.campId) };
@@ -179,10 +172,7 @@ async function run() {
             res.send({ participant: participantResult, campResult });
         });
 
-
-
-
-        app.get('/participants/:email', async (req, res) => {
+        app.get('/participants/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const result = await participantsCollection.aggregate([
                 {
@@ -258,137 +248,101 @@ async function run() {
 
 
         app.post('/payments', async (req, res) => {
-            try {
-                const payment = req.body;
-                const { participantId } = req.body;
-                console.log('Request body:', req.body);
-                if (!participantId) {
-                    return res.status(400).send({ error: 'participantId is required in the request body' });
+            const payment = req.body;
+            const { participantId } = req.body;
+            const query = { _id: new ObjectId(participantId) };
+            const participant = await participantsCollection.findOne(query);
+            const paymentResult = await paymentsCollection.insertOne(payment);
+            const updateResult = await participantsCollection.updateOne(
+                { _id: participant._id },
+                {
+                    $set: {
+                        paymentStatus: 'Paid',
+                    },
                 }
-
-                console.log('Extracted participantId:', participantId);
-                const query = { _id: new ObjectId(participantId) };
-                const participant = await participantsCollection.findOne(query);
-
-                console.log('Found participant:', participant);
-
-                if (!participant) {
-                    return res.status(404).send({ error: 'Participant not found' });
-                }
-
-                const paymentResult = await paymentsCollection.insertOne(payment);
-
-                const updateResult = await participantsCollection.updateOne(
-                    { _id: participant._id },
-                    {
-                        $set: {
-                            paymentStatus: 'Paid',
-                        },
-                    }
-                );
-
-                console.log('Payment update result:', updateResult);
-
-                const updatedParticipant = await participantsCollection.findOne({ _id: participant._id });
-                res.send({
-                    paymentResult,
-                    participant: updatedParticipant,
-                });
-
-            } catch (error) {
-                console.error('Error in processing the payment:', error);
-                res.status(500).send({ error: 'Internal Server Error' });
-            }
+            );
+            const updatedParticipant = await participantsCollection.findOne({ _id: participant._id });
+            res.send({
+                paymentResult,
+                participant: updatedParticipant,
+            });
         });
 
 
         app.get('/payments/:email', async (req, res) => {
             const email = req.params.email;
-            try {
-                const result = await paymentsCollection.aggregate([
-                    { $match: { email: email } },
-                    {
-                        $addFields: {
-                            participantId: { $toObjectId: '$participantId' },
-                        },
-                    },
-                    {
-                        $lookup: {
-                            from: 'participants',
-                            localField: 'participantId',
-                            foreignField: '_id',
-                            as: 'participants',
-                        },
-                    },
-                    { $unwind: '$participants' },
-                    {
-                        $addFields: {
-                            campName: '$participants.campName',
-                            campFees: '$participants.fees',
-                            campLocation: '$participants.location',
-                            paymentStatus: '$participants.paymentStatus',
-                            paymentConfirmationStatus: '$participants.paymentConfirmationStatus'
 
-                        },
+            const result = await paymentsCollection.aggregate([
+                { $match: { email: email } },
+                {
+                    $addFields: {
+                        participantId: { $toObjectId: '$participantId' },
                     },
-                    {
-                        $project: {
-                            participants: 0,
-                            _id: 0,
-                        },
+                },
+                {
+                    $lookup: {
+                        from: 'participants',
+                        localField: 'participantId',
+                        foreignField: '_id',
+                        as: 'participants',
                     },
-                ]).toArray();
+                },
+                { $unwind: '$participants' },
+                {
+                    $addFields: {
+                        campName: '$participants.campName',
+                        campFees: '$participants.fees',
+                        campLocation: '$participants.location',
+                        paymentStatus: '$participants.paymentStatus',
+                        paymentConfirmationStatus: '$participants.paymentConfirmationStatus'
 
-                console.log(result);
-                res.send(result);
-            } catch (error) {
-                console.error('Error:', error);
-                res.status(500).send({ message: 'An error occurred', error });
-            }
+                    },
+                },
+                {
+                    $project: {
+                        participants: 0,
+                        _id: 0,
+                    },
+                },
+            ]).toArray();
+            res.send(result);
         });
 
         app.get('/payments', async (req, res) => {
-            try {
-                const result = await paymentsCollection.aggregate([
-                    {
-                        $addFields: {
-                            participantId: { $toObjectId: '$participantId' },
-                        },
+            const result = await paymentsCollection.aggregate([
+                {
+                    $addFields: {
+                        participantId: { $toObjectId: '$participantId' },
                     },
-                    {
-                        $lookup: {
-                            from: 'participants',
-                            localField: 'participantId',
-                            foreignField: '_id',
-                            as: 'participants',
-                        },
+                },
+                {
+                    $lookup: {
+                        from: 'participants',
+                        localField: 'participantId',
+                        foreignField: '_id',
+                        as: 'participants',
                     },
-                    { $unwind: '$participants' },
-                    {
-                        $addFields: {
-                            campName: '$participants.campName',
-                            campFees: '$participants.fees',
-                            campLocation: '$participants.location',
-                            paymentStatus: '$participants.paymentStatus',
-                            paymentConfirmationStatus: '$participants.paymentConfirmationStatus',
-                            participantName: '$participants.participantName',
+                },
+                { $unwind: '$participants' },
+                {
+                    $addFields: {
+                        campName: '$participants.campName',
+                        campFees: '$participants.fees',
+                        campLocation: '$participants.location',
+                        paymentStatus: '$participants.paymentStatus',
+                        paymentConfirmationStatus: '$participants.paymentConfirmationStatus',
+                        participantName: '$participants.participantName',
 
-                        },
                     },
-                    {
-                        $project: {
-                            participants: 0,
-                            _id: 1,
-                        },
+                },
+                {
+                    $project: {
+                        participants: 0,
+                        _id: 1,
                     },
-                ]).toArray();
-
-                console.log(result);
-                res.send(result);
-            } catch (error) {
-                console.error('Error:', error);
-                res.status(500).send({ message: 'An error occurred', error });
-            }
+                },
+            ]).toArray();
+            res.send(result);
         });
 
 
@@ -465,8 +419,6 @@ async function run() {
 
         });
 
-
-
         app.post('/jwt', async (req, res) => {
             const email = req.body
             const token = jwt.sign(email, process.env.SECRET_KEY, {
@@ -494,13 +446,7 @@ async function run() {
                 res.status(500).send(err)
             }
         })
-
-
-        // Send a ping to confirm a successful connection
-        await client.db('admin').command({ ping: 1 })
-        console.log(
-            'Pinged your deployment. You successfully connected to MongoDB!'
-        )
+        
     } finally {
         // Ensures that the client will close when you finish/error
     }
@@ -512,5 +458,4 @@ app.get('/', (req, res) => {
 })
 
 app.listen(port, () => {
-    console.log(`careHeavenNet is running on port ${port}`)
 })
