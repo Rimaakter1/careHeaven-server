@@ -222,6 +222,13 @@ async function run() {
         });
 
 
+        app.get('/participant-all-camps/:email', async (req, res) => {
+            const participantEmail = req.params.email
+            console.log(participantEmail);
+            const result = await participantsCollection.find({ participantEmail }).toArray()
+            res.send(result)
+        })
+
 
         app.get('/participant/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
@@ -230,6 +237,8 @@ async function run() {
             const result = await participantsCollection.findOne(query)
             res.send(result)
         })
+
+
 
         app.post('/create-payment-intent', async (req, res) => {
             const { campFees } = req.body;
@@ -247,7 +256,6 @@ async function run() {
             })
         });
 
-        const { ObjectId } = require('mongodb');
 
         app.post('/payments', async (req, res) => {
             try {
@@ -428,19 +436,12 @@ async function run() {
         app.delete('/cancel-registered-participant/:participantId', verifyToken, verifyAdmin, async (req, res) => {
             const { participantId } = req.params;
 
-            try {
-                const result = await participantsCollection.deleteOne(
-                    { _id: new ObjectId(participantId) }
-                );
+            const result = await participantsCollection.deleteOne(
+                { _id: new ObjectId(participantId) }
+            );
 
-                if (result.deletedCount === 1) {
-                    return res.send({ success: true });
-                } else {
-                    return res.status(404).send({ error: 'Participant not found' });
-                }
-            } catch (error) {
-                console.error("Error canceling registration:", error);
-                res.status(500).send({ error: 'Internal server error' });
+            if (result.deletedCount === 1) {
+                return res.send({ success: true });
             }
         });
 
@@ -448,20 +449,29 @@ async function run() {
         app.post("/submit-feedback", async (req, res) => {
             const { campId, feedback, rating, participantName, participantEmail, photo } = req.body;
 
-                const result = await feedbacksCollection.insertOne({
-                    campId: new ObjectId(campId),
-                    feedback,
-                    rating,
-                    participantName,
-                    participantEmail,
-                    photo,
-                    createdAt: new Date(),
-                });
+            const result = await feedbacksCollection.insertOne({
+                campId: new ObjectId(campId),
+                feedback,
+                rating,
+                participantName,
+                participantEmail,
+                photo,
+                createdAt: new Date(),
+            });
 
-                res.status(201).json({
-                    feedbackId: result.insertedId,
-                });
+            res.send({
+                feedbackId: result.insertedId,
+            });
         });
+
+
+        app.get("/feedbacks", async (req, res) => {
+            const feedbacks = await feedbacksCollection.find({}).toArray();
+            res.send(feedbacks);
+
+        });
+
+
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
