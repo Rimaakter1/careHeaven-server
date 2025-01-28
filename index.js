@@ -246,26 +246,52 @@ async function run() {
             })
         });
 
-        app.post('/payments', async (req, res) => {
-            const payment = req.body;
-            const { campId } = req.body;
-            const participant = await participantsCollection.findOne({ campId });
-            const paymentResult = await paymentsCollection.insertOne(payment);
-            const updateResult = await participantsCollection.updateOne(
-                { campId },
-                {
-                    $set: {
-                        paymentStatus: 'Paid',
-                    },
-                }
-            );
-            const updatedParticipant = await participantsCollection.findOne({ campId });
-            res.send({
-                paymentResult,
-                participant: updatedParticipant,
-            });
+        const { ObjectId } = require('mongodb');
 
+        app.post('/payments', async (req, res) => {
+            try {
+                const payment = req.body;
+                const { participantId } = req.body;
+                console.log('Request body:', req.body);
+                if (!participantId) {
+                    return res.status(400).send({ error: 'participantId is required in the request body' });
+                }
+
+                console.log('Extracted participantId:', participantId);
+                const query = { _id: new ObjectId(participantId) };
+                const participant = await participantsCollection.findOne(query);
+
+                console.log('Found participant:', participant);
+
+                if (!participant) {
+                    return res.status(404).send({ error: 'Participant not found' });
+                }
+
+                const paymentResult = await paymentsCollection.insertOne(payment);
+
+                const updateResult = await participantsCollection.updateOne(
+                    { _id: participant._id },
+                    {
+                        $set: {
+                            paymentStatus: 'Paid',
+                        },
+                    }
+                );
+
+                console.log('Payment update result:', updateResult);
+
+                const updatedParticipant = await participantsCollection.findOne({ _id: participant._id });
+                res.send({
+                    paymentResult,
+                    participant: updatedParticipant,
+                });
+
+            } catch (error) {
+                console.error('Error in processing the payment:', error);
+                res.status(500).send({ error: 'Internal Server Error' });
+            }
         });
+
 
         app.get('/payments/:email', async (req, res) => {
             const email = req.params.email;
