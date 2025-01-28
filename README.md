@@ -1,4 +1,4 @@
-# Medical Camp Management System (MCMS) - Server Side
+# CareHeaven (Medical Camp Management System) - Server Side
 
 This repository contains the server-side code for the **Medical Camp Management System (MCMS)**, a MERN stack project to manage medical camps.
 
