@@ -338,16 +338,55 @@ async function run() {
             }
         });
 
+        app.get('/payments', async (req, res) => {
+            try {
+                const result = await paymentsCollection.aggregate([
+                    {
+                        $addFields: {
+                            participantId: { $toObjectId: '$participantId' },
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: 'participants',
+                            localField: 'participantId',
+                            foreignField: '_id',
+                            as: 'participants',
+                        },
+                    },
+                    { $unwind: '$participants' },
+                    {
+                        $addFields: {
+                            campName: '$participants.campName',
+                            campFees: '$participants.fees',
+                            campLocation: '$participants.location',
+                            paymentStatus: '$participants.paymentStatus',
+                            paymentConfirmationStatus: '$participants.paymentConfirmationStatus',
+                            participantName: '$participants.participantName',
 
+                        },
+                    },
+                    {
+                        $project: {
+                            participants: 0,
+                            _id: 1,
+                        },
+                    },
+                ]).toArray();
+
+                console.log(result);
+                res.send(result);
+            } catch (error) {
+                console.error('Error:', error);
+                res.status(500).send({ message: 'An error occurred', error });
+            }
+        });
 
 
         app.delete('/cancel-registration/:id', verifyToken, async (req, res) => {
             const campId = req.params.id;
-
-
             const participantQuery = { campId };
             const participantDeleteResult = await participantsCollection.deleteOne(participantQuery);
-
             if (participantDeleteResult.deletedCount === 0) {
                 return res.status(404).send({ message: "Participant not found" });
             }
@@ -364,8 +403,45 @@ async function run() {
 
         });
 
+        app.patch('/update-confirmation/:participantId', async (req, res) => {
+            const { participantId } = req.params;
+            const { paymentConfirmationStatus } = req.body; // 'Confirmed'
+            console.log('status', paymentConfirmationStatus);
+            try {
+                const result = await participantsCollection.updateOne(
+                    { _id: new ObjectId(participantId) },
+                    { $set: { paymentConfirmationStatus: paymentConfirmationStatus } }
+                );
 
+                if (result.modifiedCount === 1) {
+                    return res.send({ success: true });
+                } else {
+                    return res.status(404).send({ error: 'Participant not found or confirmation already updated' });
+                }
+            } catch (error) {
+                console.error("Error updating confirmation status:", error);
+                res.status(500).send({ error: 'Internal server error' });
+            }
+        });
 
+        app.delete('/cancel-registered-participant/:participantId', async (req, res) => {
+            const { participantId } = req.params;
+
+            try {
+                const result = await participantsCollection.deleteOne(
+                    { _id: new ObjectId(participantId) }
+                );
+
+                if (result.deletedCount === 1) {
+                    return res.send({ success: true });
+                } else {
+                    return res.status(404).send({ error: 'Participant not found' });
+                }
+            } catch (error) {
+                console.error("Error canceling registration:", error);
+                res.status(500).send({ error: 'Internal server error' });
+            }
+        });
 
         app.post('/jwt', async (req, res) => {
             const email = req.body
