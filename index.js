@@ -11,7 +11,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000
 const app = express()
 const corsOptions = {
-    origin: ['http://localhost:5173', 'http://localhost:5174','https://careheaven-a204d.web.app'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'https://careheaven-a204d.web.app'],
     credentials: true,
     optionSuccessStatus: 200,
 }
@@ -53,6 +53,7 @@ async function run() {
         const participantsCollection = db.collection('participants')
         const paymentsCollection = db.collection('payments')
         const feedbacksCollection = db.collection('feedbacks')
+        const servicesCollection = db.collection('services')
 
 
         const verifyAdmin = async (req, res, next) => {
@@ -119,19 +120,19 @@ async function run() {
         })
 
         app.get('/camps', async (req, res) => {
-            
-                const sortField = req.query.sort || "participantCount";
-                const sortOrder = req.query.order === "asc" ? 1 : -1;
-                const limit = parseInt(req.query.limit) || 0;
 
-                const result = await campsCollection
-                    .find()
-                    .sort({ [sortField]: sortOrder })
-                    .limit(limit)
-                    .toArray();
+            const sortField = req.query.sort || "participantCount";
+            const sortOrder = req.query.order === "asc" ? 1 : -1;
+            const limit = parseInt(req.query.limit) || 0;
 
-                res.send(result);
-           
+            const result = await campsCollection
+                .find()
+                .sort({ [sortField]: sortOrder })
+                .limit(limit)
+                .toArray();
+
+            res.send(result);
+
         });
 
 
@@ -419,6 +420,12 @@ async function run() {
 
         });
 
+        app.get("/services", async (req, res) => {
+            const services = await servicesCollection.find({}).limit(3).toArray();
+            res.send(services);
+        });
+
+
         app.post('/jwt', async (req, res) => {
             const email = req.body
             const token = jwt.sign(email, process.env.SECRET_KEY, {
@@ -446,7 +453,7 @@ async function run() {
                 res.status(500).send(err)
             }
         })
-        
+
     } finally {
         // Ensures that the client will close when you finish/error
     }
