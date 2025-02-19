@@ -424,6 +424,10 @@ async function run() {
             const services = await servicesCollection.find({}).limit(3).toArray();
             res.send(services);
         });
+        app.get("/all-services", async (req, res) => {
+            const services = await servicesCollection.find({}).toArray();
+            res.send(services);
+        });
 
 
         app.post('/jwt', async (req, res) => {
